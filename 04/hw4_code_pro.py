@@ -25,9 +25,65 @@ def find_best_split(feature_vector, target_vector):
     :return threshold_best: оптимальный порог (число)
     :return gini_best: оптимальное значение критерия Джини (число)
     """
-    # ╰( ͡° ͜ʖ ͡° )つ──☆*:・ﾟ
 
-    pass
+    dict_results = {}   # Храним результаты
+     # Храним отдельно значения ginis
+
+
+    #Функция для расчета критерия gini
+
+    def gini(left_split: np.array, right_split: np.array):
+        
+        p1,p0 = 0,0 
+        size_left, size_right = np.size(left_split), np.size(right_split)
+        size_full = size_left + size_right
+
+        if size_left == 0 or size_right == 0:
+            return np.inf
+
+        #Расчет H(left_split) для левого поддерева 
+        non_zero = np.count_nonzero(left_split)
+        zeros = size_left - non_zero 
+
+        p1 = non_zero/size_left 
+        p0 = zeros/size_left 
+
+        H_left = 1 - p1**2 - p0**2
+
+        #Расчет H(right_split) для правого поддерева
+        non_zero = np.count_nonzero(right_split)
+        zeros = size_right - non_zero 
+
+        p1 = non_zero/size_right 
+        p0 = zeros/size_right 
+
+        H_right = 1 - p1**2 - p0**2
+
+
+        return - size_left/size_full * H_left - size_right/size_full * H_right 
+
+
+    #Расчет трешхолдов 
+    feature_vector_sort = sorted(feature_vector)
+    thresholds = np.lib.stride_tricks.sliding_window_view(feature_vector_sort, 2).mean(axis=1) # Через скользящее
+    ginis = []
+
+
+    for thresh in thresholds:
+        mask_left = feature_vector <= thresh
+        mask_right = feature_vector > thresh
+        left_split = target_vector[mask_left]
+        right_split = target_vector[mask_right]
+        g = gini(left_split, right_split)
+        dict_results[thresh] = (left_split, right_split, g)
+        ginis.append(g)
+
+    ginis = np.array(ginis)
+    idx_best = np.argmin(ginis)
+    threshold_best = thresholds[idx_best]
+    gini_best = ginis[idx_best]
+
+    return thresholds, ginis, threshold_best, gini_best
 
 
 class DecisionTree:
@@ -45,7 +101,7 @@ class DecisionTree:
         if np.all(sub_y != sub_y[0]):
             node["type"] = "terminal"
             node["class"] = sub_y[0]
-            return
+            return 
 
         feature_best, threshold_best, gini_best, split = None, None, None, None
         for feature in range(1, sub_X.shape[1]):
